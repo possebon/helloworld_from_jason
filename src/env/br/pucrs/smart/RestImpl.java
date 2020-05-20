@@ -15,6 +15,8 @@ import javax.ws.rs.core.MediaType;
 import org.glassfish.jersey.internal.inject.AbstractBinder;
 
 import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 import br.pucrs.smart.interfaces.IAgent;
 import br.pucrs.smart.models.RequestDialogflow;
@@ -42,12 +44,14 @@ public class RestImpl extends AbstractBinder {
     @Produces(MediaType.APPLICATION_JSON)
     public Response createNewAgent(String request) {
         try {
-        	RequestDialogflow requestDialogflow = gson.fromJson(request, RequestDialogflow.class);
+			RequestDialogflow requestDialogflow = gson.fromJson(request, RequestDialogflow.class);
+			JsonObject obj = new JsonParser().parse(request).getAsJsonObject();
         	System.out.println("Agente comunicado: " +  gson.toJson(requestDialogflow)); 
         	if (mas != null) {
         		ResponseDialogflow ResponseDialogflow = mas.processarIntencao(requestDialogflow.getResponseId(),
         																	  requestDialogflow.getQueryResult().getIntent().getDisplayName(),
-        																	  requestDialogflow.getQueryResult().getParameters(),
+																			//   requestDialogflow.getQueryResult().getParameters(),
+																			  obj,
         																	  requestDialogflow.getQueryResult().getOutputContexts());
                 return Response.ok(gson.toJson(ResponseDialogflow)).build();
         	} else {

@@ -49,7 +49,7 @@ public class Translator {
 	}
 	
 	public static List<Literal> entryToLiteral(Set<Entry<String,JsonElement>> entries) throws ParseException {
-//		System.out.println("Parsing object "+entries.toString()+" to Literals");
+		// System.out.println("Parsing object "+entries.toString()+" to Literals");
 		ArrayList<Literal> list = new ArrayList<>();
 		
 		for (Iterator<Entry<String, JsonElement>> iterator = entries.iterator(); iterator.hasNext();) {
@@ -58,8 +58,10 @@ public class Translator {
 				
 			if (e.getValue().isJsonPrimitive()) {
 				JsonPrimitive jp = e.getValue().getAsJsonPrimitive();
-				if (jp.isBoolean() & jp.getAsBoolean())
-					list.add(ASSyntax.createAtom(e.getKey()));
+				if (jp.isBoolean()){
+					if (jp.getAsBoolean())
+						list.add(ASSyntax.createAtom(e.getKey()));
+				}
 				else					
 					list.add(JsonPrimitiveToLiteral(e.getKey(), jp));
 			} 
@@ -276,8 +278,11 @@ public class Translator {
 		entries.forEach(e ->{
 			if (e.getValue().isJsonPrimitive()) {
 				JsonPrimitive jp = e.getValue().getAsJsonPrimitive();
-				if (jp.isBoolean() & jp.getAsBoolean())
-					list.add(new Percept(e.getKey()));
+				// if (jp.isBoolean() & jp.getAsBoolean())
+				// 	list.add(new Percept(e.getKey()));
+				if (jp.isBoolean()){
+					if (jp.getAsBoolean()) list.add(new Percept(e.getKey()));
+				}
 				else					
 					list.add(JsonPrimitiveToPercept(e.getKey(), jp));
 			} 

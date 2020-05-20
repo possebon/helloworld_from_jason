@@ -3,6 +3,8 @@
 package br.pucrs.smart;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +17,10 @@ import br.pucrs.smart.models.OutputContexts;
 import br.pucrs.smart.models.ResponseDialogflow;
 import cartago.*;
 import jason.asSyntax.Literal;
+import jason.asSyntax.parser.ParseException;
+import jason.stdlib.foreach;
+import eis.iilang.Percept;
+import jason.JasonException;
 
 public class IntegrationArtifact extends Artifact implements IAgent {
 	private Logger logger = Logger.getLogger("ArtefatoIntegracao." + IntegrationArtifact.class.getName());
@@ -25,8 +31,58 @@ public class IntegrationArtifact extends Artifact implements IAgent {
 	}
 
 	@INTERNAL_OPERATION
-	void defineRequest(String obsProperty) {
-		defineObsProperty("request", obsProperty);
+	private void updatePerceptions(Collection<Percept> previousPercepts, Collection<Percept> percepts,
+			List<String> orderPercept) {
+		if (previousPercepts == null) {// should add all new perceptions
+			percepts.forEach((newp) -> {
+				try {
+					Literal literal = Translator.perceptToLiteral(newp);
+					defineObsProperty(literal.getFunctor(), (Object[]) literal.getTermsArray());
+				} catch (JasonException e) {
+					logger.info("Failed to parse percept to literal: " + e.getMessage());
+				}
+			});
+		} else {
+			// remove percepts
+			previousPercepts.forEach((old) -> {
+				if (!percepts.contains(old)) {
+					try {
+						Literal literal = Translator.perceptToLiteral(old);
+						removeObsPropertyByTemplate(old.getName(), (Object[]) literal.getTermsArray());
+					} catch (JasonException e) {
+						logger.info("Failed to parse percept to literal: " + e.getMessage());
+					} catch (IllegalArgumentException e2) {
+						logger.info("There is no obs property: " + e2.getMessage());
+					}
+				}
+			});
+
+			// form list of percepts
+			ArrayList<Literal> ordinaryLiterals = new ArrayList<Literal>();
+			Literal[] orderToAdd = new Literal[orderPercept.size()];
+			percepts.forEach((percept) -> {
+				if (!previousPercepts.contains(percept)) {
+					try {
+						Literal literal = Translator.perceptToLiteral(percept);
+						if (orderPercept != null && orderPercept.contains(percept.getName())) {
+							orderToAdd[orderPercept.indexOf(percept.getName())] = literal;
+						} else
+							ordinaryLiterals.add(literal);
+					} catch (JasonException e) {
+						logger.info("Failed to parse percept to literal: " + e.getMessage());
+					}
+				}
+			});
+
+			// add new percepts
+			for (int i = 0; i < orderToAdd.length; i++) {
+				defineObsProperty(orderToAdd[i].getFunctor(), (Object[]) orderToAdd[i].getTermsArray());
+			}
+			ordinaryLiterals.forEach((l) -> {
+				defineObsProperty(l.getFunctor(), (Object[]) l.getTermsArray());
+			});
+			signal("percepts_updated");
+		}
 	}
 
 	@OPERATION
@@ -35,38 +91,48 @@ public class IntegrationArtifact extends Artifact implements IAgent {
 	}
 
 	@Override
-	public ResponseDialogflow processarIntencao(String sessionId, String request, HashMap<String, String> parameters, List<OutputContexts> outputContexts) {
+	public ResponseDialogflow processarIntencao(String sessionId, String request, JsonObject parameters,
+			List<OutputContexts> outputContexts) {
 
 		ResponseDialogflow response = new ResponseDialogflow();
 		System.out.println("recebido evento: " + sessionId);
 		System.out.println("Intenção: " + request);
 		if (request != null) {
-			
-			for(Map.Entry<String, String> entry : parameters.entrySet()) {
-			    String key = entry.getKey();
-			    String value = entry.getValue();
 
-				System.out.println("parameters: " + key + " : " + value);
-
+			JsonObject param = parameters.getAsJsonObject().getAsJsonObject("queryResult").getAsJsonObject("parameters");
+			JsonObject intent = parameters.getAsJsonObject().getAsJsonObject("queryResult").getAsJsonObject("intent");			
+			intent.add("request", intent.get("displayName"));
+			// Arrays.asList("name", "displayName").forEach(f -> intent.remove(f));
+			List<Percept> p = new ArrayList<Percept>();
+			try {
+				p.addAll(Translator.entryToPercept(param.entrySet()));
+				p.addAll(Translator.entryToPercept(intent.entrySet()));
+			} catch (ParseException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
 			}
-			for (OutputContexts outputContext : outputContexts) {
-				System.out.println("OutputContexts name: " + outputContext.getName());
-				System.out.println("OutputContexts lifespanCount: " + outputContext.getLifespanCount());
-				System.out.println("OutputContexts parameters: ");
-				for(Map.Entry<String, String> entry : parameters.entrySet()) {
-				    String key = entry.getKey();
-				    String value = entry.getValue();
-					System.out.println(key + " : " + value);
+			// for(Map.Entry<String, String> entry : parameters.entrySet()) {
+			//     String key = entry.getKey();
+			//     String value = entry.getValue();
+
+			// 	System.out.println("parameters: " + key + " : " + value);
+
+			// }
+
+			if (outputContexts != null){
+				for (OutputContexts outputContext : outputContexts) {
+					System.out.println("OutputContexts name: " + outputContext.getName());
+					System.out.println("OutputContexts lifespanCount: " + outputContext.getLifespanCount());
+					System.out.println("OutputContexts parameters: ");
+					// for(Map.Entry<String, String> entry : parameters.entrySet()) {
+					// 	String key = entry.getKey();
+					// 	String value = entry.getValue();
+					// 	System.out.println(key + " : " + value);
+					// }				
 				}
-				
 			}
-			
-			
-			
-			
-			
-			
-			execInternalOp("defineRequest", request);
+
+			execInternalOp("updatePerceptions", null, p, null);
 			System.out.println("Definindo propriedade observável");
 		} else {
 			System.out.println("Não foi possível definir a propriedade observável");
