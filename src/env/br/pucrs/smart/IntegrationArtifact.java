@@ -15,6 +15,10 @@ import br.pucrs.smart.models.OutputContexts;
 import br.pucrs.smart.models.ResponseDialogflow;
 import cartago.*;
 import jason.asSyntax.Literal;
+import jaycie.models.Appointment;
+import jaycie.models.Professional;
+import jaycie.models.Customer;
+import jaycie.models.Service;
 
 public class IntegrationArtifact extends Artifact implements IAgent {
 	private Logger logger = Logger.getLogger("ArtefatoIntegracao." + IntegrationArtifact.class.getName());
@@ -33,7 +37,33 @@ public class IntegrationArtifact extends Artifact implements IAgent {
 	void reply(String response) {
 		this.jasonResponse = response;
 	}
+	
+	@OPERATION
+	void schedule_appointment(Appointment customer_appointment) {
+		
+	}
+	
+	@OPERATION
+	void check_agenda(String professional_name){
+		
+	}
 
+	@OPERATION
+	void check_business_hours() {
+		
+	}
+	
+	@OPERATION
+	void check_professionals_by_service(String service) {
+	
+	}
+	
+	@OPERATION
+	void cancel_appointment(Appointment customer_appoint) {
+		
+	}
+	
+	
 	@Override
 	public ResponseDialogflow processarIntencao(String sessionId, String request, HashMap<String, Object> parameters, List<OutputContexts> outputContexts) {
 
